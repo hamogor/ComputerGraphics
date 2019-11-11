@@ -16,6 +16,7 @@
 #include "raaConstants.h"
 #include "raaParse.h"
 #include "raaControl.h"
+#include <stdio.h>
 
 // NOTES
 // look should look through the libraries and additional files I have provided to familarise yourselves with the functionallity and code.
@@ -48,13 +49,18 @@ void mouse(int iKey, int iEvent, int iXPos, int iYPos); // called for each mouse
 void motion(int iXPos, int iYPos); // called for each mouse motion event
 void setShape(raaNode *pNode); // Sets the correct shape based on world system
 void setColor(raaNode *pNode); // Sets the correct color based on node continent
+void nodeMath(raaNode *pNode);
 
 // Non glut functions
 void myInit(); // the myinit function runs once, before rendering starts and should be used for setup
-void nodeDisplay(raaNode *pNode); // callled by the display function to draw nodes
+void nodeDisplay(raaNode *pNode); // called by the display function to draw nodes
 void arcDisplay(raaArc *pArc); // called by the display function to draw arcs
 void buildGrid(); // 
 
+void resetNodeForce(raaNode *pNode)
+{
+	vecInitDVec(pNode->m_force);
+}
 
 void nodeDisplay(raaNode *pNode) // function to render a node (called from display())
 {
@@ -74,17 +80,15 @@ void arcDisplay(raaArc *pArc) // function to render an arc (called from display(
 {
 	
 
-	//float d = vecNormalise(pArc->m_pNode0->m_afPosition, pArc->m_pNode1->m_afPosition);
-	//float i = vecDistance(pArc->m_pNode0->m_afPosition, pArc->m_pNode1->m_afPosition);
-	//float extension = d - 50.0f;
-	//float f = extension * pArc->m_fSpringCoef;
-	//const float time = 0.5f;
-	//const float v = 0.01;
-	//float a = f / pArc->m_pNode0->m_fMass;
-	//float scalarS = v * time * 0.5f * (a * (time * time));
-	//float s[4];
-	//vecScalarProduct(pArc->m_pNode0->m_afPosition, scalarS, s);
-	//vecAdd(pArc->m_pNode0->m_afPosition, s, pArc->m_pNode0->m_afPosition);
+	glEnable(GL_COLOR_MATERIAL);
+	glDisable(GL_LIGHTING);
+	glLineWidth(1);
+	glBegin(GL_LINES);
+	glColor3d(0.0, 1.0, 0.0);
+	glVertex3f(pArc->m_pNode0->m_afPosition[0], pArc->m_pNode0->m_afPosition[1], pArc->m_pNode0->m_afPosition[2]);
+	glColor3f(1.0, 0.0, 0.0);
+	glVertex3f(pArc->m_pNode1->m_afPosition[0], pArc->m_pNode1->m_afPosition[1], pArc->m_pNode1->m_afPosition[2]);
+	glEnd();
 
 
 }
@@ -96,21 +100,23 @@ void setShape(raaNode *pNode)
 	switch(pNode->m_uiWorldSystem)
 	{
 	case 1:
-		glutSolidSphere(0.5 * size * pNode->m_fMass, 10, 10);
+		glutSolidSphere(0.5 * mathsRadiusOfSphereFromVolume(pNode->m_fMass), 10, 10);
 		break;
 	case 2:
-		glutSolidCube(size * pNode->m_fMass);
+		glutSolidCube(mathsDimensionOfCubeFromVolume(pNode->m_fMass));
 		break;
 	case 3:
 		glRotatef(270.0f, 1.0f, 0.0, 0.0);
-		glutSolidCone(pNode->m_fMass * size, 10.0, 10, 10);
+		glutSolidCone(0.5 * mathsRadiusOfConeFromVolume(pNode->m_fMass), 10.0, 10, 10);
 		break;
 	}
+	
 	
 }
 
 void setColor(raaNode *pNode)
 {
+	// Add a member to pNode to store a color array that can then just be drawn in nodeDisplay
 	switch(pNode->m_uiContinent)
 	{
 	case 1: // Africa
@@ -151,132 +157,6 @@ void setColor(raaNode *pNode)
 	}
 }
 
-// draw the scene. Called once per frame and should only deal with scene drawing (not updating the simulator)
-void display() 
-{
-	glClear(GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT); // clear the rendering buffers
-
-	glLoadIdentity(); // clear the current transformation state
-	glMultMatrixf(camObjMat(g_Camera)); // apply the current camera transform
-
-	// draw the grid if the control flag for it is true	
-	if (controlActive(g_Control, csg_uiControlDrawGrid)) glCallList(gs_uiGridDisplayList);
-
-	glPushAttrib(GL_ALL_ATTRIB_BITS); // push attribute state to enable constrained state changes
-	visitNodes(&g_System, nodeDisplay); // loop through all of the nodes and draw them with the nodeDisplay function
-	visitArcs(&g_System, arcDisplay); // loop through all of the arcs and draw them with the arcDisplay function
-	glPopAttrib();
-
-
-	
-
-	glFlush(); // ensure all the ogl instructions have been processed
-	glutSwapBuffers(); // present the rendered scene to the screen
-}
-
-// processing of system and camera data outside of the rendering loop
-void idle() 
-{
-	controlChangeResetAll(g_Control); // re-set the update status for all of the control flags
-	camProcessInput(g_Input, g_Camera); // update the camera pos/ori based on changes since last render
-	camResetViewportChanged(g_Camera); // re-set the camera's viewport changed flag after all events have been processed
-	glutPostRedisplay();// ask glut to update the screen
-}
-
-// respond to a change in window position or shape
-void reshape(int iWidth, int iHeight)  
-{
-	glViewport(0, 0, iWidth, iHeight);  // re-size the rendering context to match window
-	camSetViewport(g_Camera, 0, 0, iWidth, iHeight); // inform the camera of the new rendering context size
-	glMatrixMode(GL_PROJECTION); // switch to the projection matrix stack 
-	glLoadIdentity(); // clear the current projection matrix state
-	gluPerspective(csg_fCameraViewAngle, ((float)iWidth)/((float)iHeight), csg_fNearClip, csg_fFarClip); // apply new state based on re-sized window
-	glMatrixMode(GL_MODELVIEW); // swap back to the model view matrix stac
-	glGetFloatv(GL_PROJECTION_MATRIX, g_Camera.m_afProjMat); // get the current projection matrix and sort in the camera model
-	glutPostRedisplay(); // ask glut to update the screen
-}
-
-// detect key presses and assign them to actions
-void keyboard(unsigned char c, int iXPos, int iYPos)
-{
-	switch(c)
-	{
-	case 'w':
-		camInputTravel(g_Input, tri_pos); // mouse zoom
-		break;
-	case 's':
-		camInputTravel(g_Input, tri_neg); // mouse zoom
-		break;
-	case 'c':
-		camPrint(g_Camera); // print the camera data to the comsole
-		break;
-	case 'g':
-		controlToggle(g_Control, csg_uiControlDrawGrid); // toggle the drawing of the grid
-		break;
-	}
-}
-
-// detect standard key releases
-void keyboardUp(unsigned char c, int iXPos, int iYPos) 
-{
-	switch(c)
-	{
-		// end the camera zoom action
-		case 'w': 
-		case 's':
-			camInputTravel(g_Input, tri_null);
-			break;
-	}
-}
-
-void sKeyboard(int iC, int iXPos, int iYPos)
-{
-	// detect the pressing of arrow keys for mouse zoom and record the state for processing by the camera
-	switch(iC)
-	{
-		case GLUT_KEY_UP:
-			camInputTravel(g_Input, tri_pos);
-			break;
-		case GLUT_KEY_DOWN:
-			camInputTravel(g_Input, tri_neg);
-			break;
-	}
-}
-
-void sKeyboardUp(int iC, int iXPos, int iYPos)
-{
-	// detect when mouse zoom action (arrow keys) has ended
-	switch(iC)
-	{
-		case GLUT_KEY_UP:
-		case GLUT_KEY_DOWN:
-			camInputTravel(g_Input, tri_null);
-			break;
-	}
-}
-
-void mouse(int iKey, int iEvent, int iXPos, int iYPos)
-{
-	// capture the mouse events for the camera motion and record in the current mouse input state
-	if (iKey == GLUT_LEFT_BUTTON)
-	{
-		camInputMouse(g_Input, (iEvent == GLUT_DOWN) ? true : false);
-		if (iEvent == GLUT_DOWN)camInputSetMouseStart(g_Input, iXPos, iYPos);
-	}
-	else if (iKey == GLUT_MIDDLE_BUTTON)
-	{
-		camInputMousePan(g_Input, (iEvent == GLUT_DOWN) ? true : false);
-		if (iEvent == GLUT_DOWN)camInputSetMouseStart(g_Input, iXPos, iYPos);
-	}
-}
-
-void motion(int iXPos, int iYPos)
-{
-	// if mouse is in a mode that tracks motion pass this to the camera model
-	if(g_Input.m_bMouse || g_Input.m_bMousePan) camInputSetMouseLast(g_Input, iXPos, iYPos);
-}
-
-
 void myInit()
 {
 	// setup my event control structure
@@ -307,6 +187,8 @@ void myInit()
 	// initialise the data system and load the data file
 	initSystem(&g_System);
 	parse(g_acFile, parseSection, parseNetwork, parseArc, parsePartition, parseVector);
+
+	//visitNodes(&g_System, setColor);
 }
 
 int main(int argc, char* argv[])
@@ -324,7 +206,7 @@ int main(int argc, char* argv[])
 		glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA); // define buffers to use in ogl
 		glutInitWindowPosition(csg_uiWindowDefinition[csg_uiX], csg_uiWindowDefinition[csg_uiY]);  // set rendering window position
 		glutInitWindowSize(csg_uiWindowDefinition[csg_uiWidth], csg_uiWindowDefinition[csg_uiHeight]); // set rendering window size
-		glutCreateWindow("raaAssignment1-2017");  // create rendering window and give it a name
+		glutCreateWindow("Harry Morgan Assignment 1");  // create rendering window and give it a name
 
 		buildFont(); // setup text rendering (use outline print function to render 3D text
 
@@ -350,16 +232,100 @@ int main(int argc, char* argv[])
 	else
 	{
 		// if there isn't a data file 
-
 		printf("The data file cannot be found, press any key to exit...\n");
 		_getch();
 		return 1; // error code
 	}
 }
 
+// draw the scene. Called once per frame and should only deal with scene drawing (not updating the simulator)
+void display()
+{
+	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT); // clear the rendering buffers
+
+	glLoadIdentity(); // clear the current transformation state
+	glMultMatrixf(camObjMat(g_Camera)); // apply the current camera transform
+
+	// draw the grid if the control flag for it is true	
+	if (controlActive(g_Control, csg_uiControlDrawGrid)) glCallList(gs_uiGridDisplayList);
+
+	glPushAttrib(GL_ALL_ATTRIB_BITS); // push attribute state to enable constrained state changes
+	
+	visitNodes(&g_System, nodeDisplay); // loop through all of the nodes and draw them with the nodeDisplay function
+	visitArcs(&g_System, arcDisplay); // loop through all of the arcs and draw them with the arcDisplay function
+	glPopAttrib();
+	glFlush(); // ensure all the ogl instructions have been processed
+	glutSwapBuffers(); // present the rendered scene to the screen
+}
+
+void simulationMath(raaArc *pArc)
+{
+	float direction[3];
+	vecSub(pArc->m_pNode0->m_afPosition, pArc->m_pNode1->m_afPosition, direction);
+	vecNormalise(direction, direction);
+	float i = vecDistance(pArc->m_pNode0->m_afPosition, pArc->m_pNode1->m_afPosition);
+	float extension = i - 50.0f;
+	float f = extension * pArc->m_fSpringCoef;
+	vecScalarProduct(direction, f, direction);
+	vecAdd(pArc->m_pNode0->m_force, direction, pArc->m_pNode0->m_force);
+	vecSub(pArc->m_pNode1->m_force, direction, pArc->m_pNode1->m_force);
+
+}
+
+void nodeMath(raaNode *pNode)
+{
+
+	float s[4] = {5.0f, 5.0f, 5.0f, 1.0f};
+	vecAdd(pNode->m_afPosition, s, pNode->m_afPosition);
+
+	//float acceleration[4] = {
+	//	pNode->m_force[0] * pNode->m_fMass,
+	//	pNode->m_force[1] * pNode->m_fMass,
+	//	pNode->m_force[2] * pNode->m_fMass,
+	//	1.0,
+	//};
+
+}
+
+// processing of system and camera data outside of the rendering loop
+void idle()
+{
+	controlChangeResetAll(g_Control); // re-set the update status for all of the control flags
+	camProcessInput(g_Input, g_Camera); // update the camera pos/ori based on changes since last render
+	camResetViewportChanged(g_Camera); // re-set the camera's viewport changed flag after all events have been processed
+	
+
+	visitNodes(&g_System, resetNodeForce);
+
+	// Simulation 
+	visitArcs(&g_System, simulationMath);
+
+	// call reset force inside nodeMath
+	visitNodes(&g_System, nodeMath);
+
+	// start with 3c then work back towards 3a
+
+	glutPostRedisplay();// ask glut to update the screen
+}
+
+
+
+// respond to a change in window position or shape
+void reshape(int iWidth, int iHeight)
+{
+	glViewport(0, 0, iWidth, iHeight);  // re-size the rendering context to match window
+	camSetViewport(g_Camera, 0, 0, iWidth, iHeight); // inform the camera of the new rendering context size
+	glMatrixMode(GL_PROJECTION); // switch to the projection matrix stack 
+	glLoadIdentity(); // clear the current projection matrix state
+	gluPerspective(csg_fCameraViewAngle, ((float)iWidth) / ((float)iHeight), csg_fNearClip, csg_fFarClip); // apply new state based on re-sized window
+	glMatrixMode(GL_MODELVIEW); // swap back to the model view matrix stac
+	glGetFloatv(GL_PROJECTION_MATRIX, g_Camera.m_afProjMat); // get the current projection matrix and sort in the camera model
+	glutPostRedisplay(); // ask glut to update the screen
+}
+
 void buildGrid()
 {
-	if (!gs_uiGridDisplayList) gs_uiGridDisplayList= glGenLists(1); // create a display list
+	if (!gs_uiGridDisplayList) gs_uiGridDisplayList = glGenLists(1); // create a display list
 
 	glNewList(gs_uiGridDisplayList, GL_COMPILE); // start recording display list
 
@@ -382,4 +348,84 @@ void buildGrid()
 	glPopAttrib(); // pop attrib marker (undo switching off lighting)
 
 	glEndList(); // finish recording the displaylist
+}
+
+// detect key presses and assign them to actions
+void keyboard(unsigned char c, int iXPos, int iYPos)
+{
+	switch (c)
+	{
+	case 'w':
+		camInputTravel(g_Input, tri_pos); // mouse zoom
+		break;
+	case 's':
+		camInputTravel(g_Input, tri_neg); // mouse zoom
+		break;
+	case 'c':
+		camPrint(g_Camera); // print the camera data to the comsole
+		break;
+	case 'g':
+		controlToggle(g_Control, csg_uiControlDrawGrid); // toggle the drawing of the grid
+		break;
+	}
+}
+
+// detect standard key releases
+void keyboardUp(unsigned char c, int iXPos, int iYPos)
+{
+	switch (c)
+	{
+		// end the camera zoom action
+	case 'w':
+	case 's':
+		camInputTravel(g_Input, tri_null);
+		break;
+	}
+}
+
+void sKeyboard(int iC, int iXPos, int iYPos)
+{
+	// detect the pressing of arrow keys for mouse zoom and record the state for processing by the camera
+	switch (iC)
+	{
+	case GLUT_KEY_UP:
+		camInputTravel(g_Input, tri_pos);
+		break;
+	case GLUT_KEY_DOWN:
+		camInputTravel(g_Input, tri_neg);
+		break;
+	}
+}
+
+void sKeyboardUp(int iC, int iXPos, int iYPos)
+{
+	// detect when mouse zoom action (arrow keys) has ended
+	switch (iC)
+	{
+	case GLUT_KEY_UP:
+	case GLUT_KEY_DOWN:
+		camInputTravel(g_Input, tri_null);
+		break;
+	}
+}
+
+void mouse(int iKey, int iEvent, int iXPos, int iYPos)
+{
+	// capture the mouse events for the camera motion and record in the current mouse input state
+	if (iKey == GLUT_LEFT_BUTTON)
+	{
+		camInputMouse(g_Input, (iEvent == GLUT_DOWN) ? true : false);
+		if (iEvent == GLUT_DOWN)camInputSetMouseStart(g_Input, iXPos, iYPos);
+	}
+	else if (iKey == GLUT_MIDDLE_BUTTON)
+	{
+		camInputMousePan(g_Input, (iEvent == GLUT_DOWN) ? true : false);
+		if (iEvent == GLUT_DOWN)camInputSetMouseStart(g_Input, iXPos, iYPos);
+	}
+}
+
+void motion(int iXPos, int iYPos)
+{
+	// if mouse is in a mode that tracks motion pass this to the camera model
+	if (g_Input.m_bMouse || g_Input.m_bMousePan) camInputSetMouseLast(g_Input, iXPos, iYPos);
 }
