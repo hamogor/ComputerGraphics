@@ -32,11 +32,13 @@ raaSystem g_System; // data structure holding the imported graph of data - you m
 raaControl g_Control; // set of flag controls used in my implmentation to retain state of key actions
 
 // global var: parameter name for the file to load
-const static char csg_acFileParam[] = {"-input"};
+const static char csg_acFileParam[] = { "-input" };
 
 // global var: file to load data from
 char g_acFile[256];
-
+const float time = 1.0f/* / 60.0f*/;
+const float dampingCoef = 0.992f;
+int g_bRunning = 0;
 // core functions -> reduce to just the ones needed by glut as pointers to functions to fulfill tasks
 void display(); // The rendering function. This is called once for each frame and you should put rendering code here
 void idle(); // The idle function is called at least once per frame and is where all simulation and operational code should be placed
@@ -47,22 +49,22 @@ void sKeyboard(int iC, int iXPos, int iYPos); // called for each keyboard press 
 void sKeyboardUp(int iC, int iXPos, int iYPos); // called for each keyboard release with a non ascii key (eg shift)
 void mouse(int iKey, int iEvent, int iXPos, int iYPos); // called for each mouse key event
 void motion(int iXPos, int iYPos); // called for each mouse motion event
-void setShape(raaNode *pNode); // Sets the correct shape based on world system
-void setColor(raaNode *pNode); // Sets the correct color based on node continent
-void nodeMath(raaNode *pNode);
+void setShape(raaNode* pNode); // Sets the correct shape based on world system
+void setColor(raaNode* pNode); // Sets the correct color based on node continent
+void nodeMath(raaNode* pNode);
 
 // Non glut functions
 void myInit(); // the myinit function runs once, before rendering starts and should be used for setup
-void nodeDisplay(raaNode *pNode); // called by the display function to draw nodes
-void arcDisplay(raaArc *pArc); // called by the display function to draw arcs
+void nodeDisplay(raaNode* pNode); // called by the display function to draw nodes
+void arcDisplay(raaArc* pArc); // called by the display function to draw arcs
 void buildGrid(); // 
 
-void resetNodeForce(raaNode *pNode)
+void resetNodeForce(raaNode* pNode)
 {
 	vecInitDVec(pNode->m_force);
 }
 
-void nodeDisplay(raaNode *pNode) // function to render a node (called from display())
+void nodeDisplay(raaNode* pNode) // function to render a node (called from display())
 {
 	// put your node rendering (ogl) code here]
 	// draw a simple sphere
@@ -76,9 +78,9 @@ void nodeDisplay(raaNode *pNode) // function to render a node (called from displ
 	glPopMatrix();
 }
 
-void arcDisplay(raaArc *pArc) // function to render an arc (called from display())
+void arcDisplay(raaArc* pArc) // function to render an arc (called from display())
 {
-	
+
 
 	glEnable(GL_COLOR_MATERIAL);
 	glDisable(GL_LIGHTING);
@@ -93,11 +95,11 @@ void arcDisplay(raaArc *pArc) // function to render an arc (called from display(
 
 }
 
-void setShape(raaNode *pNode)
+void setShape(raaNode* pNode)
 {
 	float size = 0.001f;
 	//First world sphere
-	switch(pNode->m_uiWorldSystem)
+	switch (pNode->m_uiWorldSystem)
 	{
 	case 1:
 		glutSolidSphere(0.5 * mathsRadiusOfSphereFromVolume(pNode->m_fMass), 10, 10);
@@ -110,49 +112,49 @@ void setShape(raaNode *pNode)
 		glutSolidCone(0.5 * mathsRadiusOfConeFromVolume(pNode->m_fMass), 10.0, 10, 10);
 		break;
 	}
-	
-	
+
+
 }
 
-void setColor(raaNode *pNode)
+void setColor(raaNode* pNode)
 {
 	// Add a member to pNode to store a color array that can then just be drawn in nodeDisplay
-	switch(pNode->m_uiContinent)
+	switch (pNode->m_uiContinent)
 	{
 	case 1: // Africa
-		{
-			float col[] = { 0.9f, 0.2f, 0.4f, 1.0f };
-			utilitiesColourToMat(col, 2.0f);
-			break;
-		}
+	{
+		float col[] = { 0.9f, 0.2f, 0.4f, 1.0f };
+		utilitiesColourToMat(col, 2.0f);
+		break;
+	}
 	case 2: // Asia 
-		{
-			float col[] = { 0.2f, 1.0f, 0.3f, 1.0f };
-			utilitiesColourToMat(col, 2.0f);
-			break;
-		}
+	{
+		float col[] = { 0.2f, 1.0f, 0.3f, 1.0f };
+		utilitiesColourToMat(col, 2.0f);
+		break;
+	}
 	case 3: // Europe
-		{
-			float col[] = { 0.3f, 0.25f, 1.0f, 1.0f };
-			utilitiesColourToMat(col, 2.0f);
-			break;
-		}
+	{
+		float col[] = { 0.3f, 0.25f, 1.0f, 1.0f };
+		utilitiesColourToMat(col, 2.0f);
+		break;
+	}
 	case 4: // North America
-		{
-			float col[] = { 0.9f, 0.2f, 1.0f, 1.0f };
-			utilitiesColourToMat(col, 2.0f);
-			break;
-		}
+	{
+		float col[] = { 0.9f, 0.2f, 1.0f, 1.0f };
+		utilitiesColourToMat(col, 2.0f);
+		break;
+	}
 	case 5: // Oceania 
-		{
-			float col[] = { 1.0f, 0.99f, 0.2f, 1.0f };
-			utilitiesColourToMat(col, 2.0f);
-		}
+	{
+		float col[] = { 1.0f, 0.99f, 0.2f, 1.0f };
+		utilitiesColourToMat(col, 2.0f);
+	}
 	case 6: // South America
-		{
-			float col[] = { 0.2f, 1.0f, 1.0f, 1.0f };
-			utilitiesColourToMat(col, 2.0f);
-		}
+	{
+		float col[] = { 0.2f, 1.0f, 1.0f, 1.0f };
+		utilitiesColourToMat(col, 2.0f);
+	}
 
 	}
 }
@@ -194,11 +196,11 @@ void myInit()
 int main(int argc, char* argv[])
 {
 	// check parameters to pull out the path and file name for the data file
-	for (int i = 0; i<argc; i++) if (!strcmp(argv[i], csg_acFileParam)) sprintf_s(g_acFile, "%s", argv[++i]);
+	for (int i = 0; i < argc; i++) if (!strcmp(argv[i], csg_acFileParam)) sprintf_s(g_acFile, "%s", argv[++i]);
 
 
-	if (strlen(g_acFile)) 
-	{ 
+	if (strlen(g_acFile))
+	{
 		// if there is a data file
 
 		glutInit(&argc, (char**)argv); // start glut (opengl window and rendering manager)
@@ -250,7 +252,7 @@ void display()
 	if (controlActive(g_Control, csg_uiControlDrawGrid)) glCallList(gs_uiGridDisplayList);
 
 	glPushAttrib(GL_ALL_ATTRIB_BITS); // push attribute state to enable constrained state changes
-	
+
 	visitNodes(&g_System, nodeDisplay); // loop through all of the nodes and draw them with the nodeDisplay function
 	visitArcs(&g_System, arcDisplay); // loop through all of the arcs and draw them with the arcDisplay function
 	glPopAttrib();
@@ -258,33 +260,46 @@ void display()
 	glutSwapBuffers(); // present the rendered scene to the screen
 }
 
-void simulationMath(raaArc *pArc)
+void simulationMath(raaArc* pArc)
 {
 	float direction[3];
-	vecSub(pArc->m_pNode0->m_afPosition, pArc->m_pNode1->m_afPosition, direction);
+	vecSub(pArc->m_pNode1->m_afPosition, pArc->m_pNode0->m_afPosition, direction);
 	vecNormalise(direction, direction);
 	float i = vecDistance(pArc->m_pNode0->m_afPosition, pArc->m_pNode1->m_afPosition);
 	float extension = i - 50.0f;
-	float f = extension * pArc->m_fSpringCoef;
+	float f = extension * (1.0f / pArc->m_fSpringCoef);
 	vecScalarProduct(direction, f, direction);
 	vecAdd(pArc->m_pNode0->m_force, direction, pArc->m_pNode0->m_force);
 	vecSub(pArc->m_pNode1->m_force, direction, pArc->m_pNode1->m_force);
 
 }
 
-void nodeMath(raaNode *pNode)
+void nodeMath(raaNode* pNode)
 {
-
-	float s[4] = {5.0f, 5.0f, 5.0f, 1.0f};
+	// s = vt + 1/2 (at^2) s=displacement(vector), v=velocity, t=time, a=acceleration (document is wrong + not *)
+	// a = F / m
+	
+	vecScalarDiv(pNode->m_force, pNode->m_fMass, pNode->m_acceleration);
+	vecScalarProduct(pNode->m_acceleration, time, pNode->m_finalVelocity);
+	vecAdd(pNode->m_initialVelocity, pNode->m_finalVelocity, pNode->m_finalVelocity);
+	float s[4];
+	vecSuvat(pNode->m_initialVelocity, pNode->m_acceleration, time, s);
 	vecAdd(pNode->m_afPosition, s, pNode->m_afPosition);
+	vecScalarDiv(s, time, pNode->m_finalVelocity);
+	vecScalarProduct(pNode->m_finalVelocity, dampingCoef, pNode->m_initialVelocity);
+	// f is optional (in the document)
 
+	
+
+	//float s[4] = { 5.0f, 5.0f, 5.0f, 1.0f };
+	//vecAdd(pNode->m_afPosition, s, pNode->m_afPosition);
 	//float acceleration[4] = {
 	//	pNode->m_force[0] * pNode->m_fMass,
 	//	pNode->m_force[1] * pNode->m_fMass,
 	//	pNode->m_force[2] * pNode->m_fMass,
 	//	1.0,
 	//};
-
+	
 }
 
 // processing of system and camera data outside of the rendering loop
@@ -293,17 +308,20 @@ void idle()
 	controlChangeResetAll(g_Control); // re-set the update status for all of the control flags
 	camProcessInput(g_Input, g_Camera); // update the camera pos/ori based on changes since last render
 	camResetViewportChanged(g_Camera); // re-set the camera's viewport changed flag after all events have been processed
-	
 
-	visitNodes(&g_System, resetNodeForce);
+	if (g_bRunning)
+	{
+		visitNodes(&g_System, resetNodeForce);
 
-	// Simulation 
-	visitArcs(&g_System, simulationMath);
+		// Simulation 
+		visitArcs(&g_System, simulationMath);
 
-	// call reset force inside nodeMath
-	visitNodes(&g_System, nodeMath);
+		// call reset force inside nodeMath
+		visitNodes(&g_System, nodeMath);
+	}
 
-	// start with 3c then work back towards 3a
+	// Move the initialisation of shape size to init so that its not set each run of the loop.
+
 
 	glutPostRedisplay();// ask glut to update the screen
 }
@@ -338,10 +356,10 @@ void buildGrid()
 	glBegin(GL_LINES);
 	for (int i = (int)csg_fDisplayListGridMin; i <= (int)csg_fDisplayListGridMax; i++)
 	{
-		glVertex3f(((float)i)*csg_fDisplayListGridSpace, 0.0f, csg_fDisplayListGridMin*csg_fDisplayListGridSpace);
-		glVertex3f(((float)i)*csg_fDisplayListGridSpace, 0.0f, csg_fDisplayListGridMax*csg_fDisplayListGridSpace);
-		glVertex3f(csg_fDisplayListGridMin*csg_fDisplayListGridSpace, 0.0f, ((float)i)*csg_fDisplayListGridSpace);
-		glVertex3f(csg_fDisplayListGridMax*csg_fDisplayListGridSpace, 0.0f, ((float)i)*csg_fDisplayListGridSpace);
+		glVertex3f(((float)i) * csg_fDisplayListGridSpace, 0.0f, csg_fDisplayListGridMin * csg_fDisplayListGridSpace);
+		glVertex3f(((float)i) * csg_fDisplayListGridSpace, 0.0f, csg_fDisplayListGridMax * csg_fDisplayListGridSpace);
+		glVertex3f(csg_fDisplayListGridMin * csg_fDisplayListGridSpace, 0.0f, ((float)i) * csg_fDisplayListGridSpace);
+		glVertex3f(csg_fDisplayListGridMax * csg_fDisplayListGridSpace, 0.0f, ((float)i) * csg_fDisplayListGridSpace);
 	}
 	glEnd(); // end line drawing
 
@@ -366,6 +384,9 @@ void keyboard(unsigned char c, int iXPos, int iYPos)
 		break;
 	case 'g':
 		controlToggle(g_Control, csg_uiControlDrawGrid); // toggle the drawing of the grid
+		break;
+	case 'r':
+		g_bRunning = !g_bRunning;
 		break;
 	}
 }

@@ -23,6 +23,9 @@ raaNode* initNode(raaNode* pNode, unsigned int uiId, float* pfPosition, float fM
 		pNode->m_uiId = uiId;
 		pNode->m_uiContinent = 0;
 		pNode->m_uiWorldSystem = 0;
+		vecInitDVec(pNode->m_finalVelocity);
+		vecInitDVec(pNode->m_initialVelocity);
+		vecInitDVec(pNode->m_acceleration);
 		vecInitDVec(pNode->m_force);
 	}
 

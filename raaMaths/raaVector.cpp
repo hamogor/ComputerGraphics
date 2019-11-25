@@ -48,6 +48,29 @@ float* vecScalarProduct( float *pV0, float fS, float *pVRes )
 	return pVRes;
 }
 
+float* vecScalarDiv(float *pV0, float fS, float *pVRes)
+{
+	if (pV0 && pVRes)
+	{
+		pVRes[0] = pV0[0] / fS;
+		pVRes[1] = pV0[1] / fS;
+		pVRes[2] = pV0[2] / fS;
+		pVRes[3] = pV0[3];
+	}
+	return pVRes;
+}
+
+float* vecSuvat(float* pVelocity, float* pAcceleration, float time, float* pVRes)
+{
+	if(pVelocity && pAcceleration && time && pVRes)
+	{
+		pVRes[0] = pVelocity[0] * time + (0.5f * (pAcceleration[0] * pow(time, 2)));
+		pVRes[1] = pVelocity[1] * time + (0.5f * (pAcceleration[1] * pow(time, 2)));
+		pVRes[2] = pVelocity[2] * time + (0.5f * (pAcceleration[2] * pow(time, 2)));
+	}
+	return pVRes;
+}
+
 float* vecScalarProduct(const float *pV0, float fS, float *pVRes)
 {
 	if (pV0 && pVRes)
@@ -127,6 +150,7 @@ float vecNormalise( float *pV0, float *pVRes )
 	}
 	return 0.0f;
 }
+
 
 float* vecProject( float *pVStart, float *pVDir, float fLen, float *pVRes )
 {
