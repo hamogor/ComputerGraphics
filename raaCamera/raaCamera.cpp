@@ -21,11 +21,11 @@ void camReset( raaCamera &rCam )
 	vecInitDVec(rCam.m_fVR);
 	vecInitDVec(rCam.m_fVD);
 	vecInitDVec(rCam.m_fVU);
-	vecSet(0.0f, 0.0f, 200.0f, rCam.m_fVP);
+	vecSet(415.0f, 370.0f, 768.0f, rCam.m_fVP);
 	vecSet(0.0f, 0.0f, -1.0f, rCam.m_fVD);
 	vecSet(1.0f, 0.0f, 0.0f, rCam.m_fVR);
 	vecSet(0.0f, 1.0f, 0.0f, rCam.m_fVU);
-	vecSet(0.0f, 0.0f, 0.0f, rCam.m_fVT);
+	vecSet(415.0f, 372.0f, 400.0f, rCam.m_fVT);
 	rCam.m_fNear=0.2f;
 	rCam.m_fFar=300000.0f;
 	rCam.m_bChanged = true;

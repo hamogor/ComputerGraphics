@@ -36,8 +36,8 @@ const static char csg_acFileParam[] = { "-input" };
 
 // global var: file to load data from
 char g_acFile[256];
-const float time = 1.0f/* / 60.0f*/;
-const float dampingCoef = 0.992f;
+const float time = 1.0f;
+const float dampingCoef = 0.990f;
 int g_bRunning = 0;
 // core functions -> reduce to just the ones needed by glut as pointers to functions to fulfill tasks
 void display(); // The rendering function. This is called once for each frame and you should put rendering code here
@@ -66,50 +66,48 @@ void resetNodeForce(raaNode* pNode)
 
 void nodeDisplay(raaNode* pNode) // function to render a node (called from display())
 {
-	// put your node rendering (ogl) code here]
-	// draw a simple sphere
-	//float afCol[] = { 0.3f, 1.0f, 0.5f, 1.0f };
 
-
+	//02/12/19 I should be using a display list that captures the output of maths and displays the nodes
+	// use alpha values and blending to reduce thickness or arcs
+	// Balance size of objects
+	// mouse selection
+	// boolean in node to say whether its been clicked.
+	// "pin" boolean in space, skip calculation
 	glPushMatrix();
 	glTranslatef(pNode->m_afPosition[0], pNode->m_afPosition[1], pNode->m_afPosition[2]);
-	setColor(pNode);
+	utilitiesColourToMat(pNode->m_colour, 2.0f);
 	setShape(pNode);
+	glTranslatef(0, 1.5, 0);
+	outlinePrint(pNode->m_acName, true);
 	glPopMatrix();
+	
 }
 
 void arcDisplay(raaArc* pArc) // function to render an arc (called from display())
-{
-
-
-	glEnable(GL_COLOR_MATERIAL);
-	glDisable(GL_LIGHTING);
-	glLineWidth(1);
-	glBegin(GL_LINES);
+{ 
+	// need to manage attribute stack, push and pops
+	// 02/12/19 would be good to use vertex arrays to draw these
+	
 	glColor3d(0.0, 1.0, 0.0);
 	glVertex3f(pArc->m_pNode0->m_afPosition[0], pArc->m_pNode0->m_afPosition[1], pArc->m_pNode0->m_afPosition[2]);
 	glColor3f(1.0, 0.0, 0.0);
 	glVertex3f(pArc->m_pNode1->m_afPosition[0], pArc->m_pNode1->m_afPosition[1], pArc->m_pNode1->m_afPosition[2]);
-	glEnd();
-
-
+	
 }
 
 void setShape(raaNode* pNode)
 {
-	float size = 0.001f;
-	//First world sphere
 	switch (pNode->m_uiWorldSystem)
 	{
 	case 1:
-		glutSolidSphere(0.5 * mathsRadiusOfSphereFromVolume(pNode->m_fMass), 10, 10);
+		glutSolidSphere(1.0 * mathsRadiusOfSphereFromVolume(pNode->m_fMass), 10, 10);
 		break;
 	case 2:
 		glutSolidCube(mathsDimensionOfCubeFromVolume(pNode->m_fMass));
 		break;
 	case 3:
 		glRotatef(270.0f, 1.0f, 0.0, 0.0);
-		glutSolidCone(0.5 * mathsRadiusOfConeFromVolume(pNode->m_fMass), 10.0, 10, 10);
+		glutSolidCone(0.9 * mathsRadiusOfConeFromVolume(pNode->m_fMass), 20.0, 10, 10);
 		break;
 	}
 
@@ -123,37 +121,49 @@ void setColor(raaNode* pNode)
 	{
 	case 1: // Africa
 	{
-		float col[] = { 0.9f, 0.2f, 0.4f, 1.0f };
-		utilitiesColourToMat(col, 2.0f);
+		pNode->m_colour[0] = 0.9f;
+		pNode->m_colour[1] = 0.2f;
+		pNode->m_colour[2] = 0.4f;
+		pNode->m_colour[3] = 1.0f;
 		break;
 	}
 	case 2: // Asia 
 	{
-		float col[] = { 0.2f, 1.0f, 0.3f, 1.0f };
-		utilitiesColourToMat(col, 2.0f);
+		pNode->m_colour[0] = 0.2f;
+		pNode->m_colour[1] = 1.0f;
+		pNode->m_colour[2] = 0.3f;
+		pNode->m_colour[3] = 1.0f;
 		break;
 	}
 	case 3: // Europe
 	{
-		float col[] = { 0.3f, 0.25f, 1.0f, 1.0f };
-		utilitiesColourToMat(col, 2.0f);
+		pNode->m_colour[0] = 0.3f;
+		pNode->m_colour[1] = 0.25f;
+		pNode->m_colour[2] = 1.0f;
+		pNode->m_colour[3] = 1.0f;
 		break;
 	}
 	case 4: // North America
 	{
-		float col[] = { 0.9f, 0.2f, 1.0f, 1.0f };
-		utilitiesColourToMat(col, 2.0f);
+		pNode->m_colour[0] = 0.9f;
+		pNode->m_colour[1] = 0.2f;
+		pNode->m_colour[2] = 1.0f;
+		pNode->m_colour[3] = 1.0f;
 		break;
 	}
 	case 5: // Oceania 
 	{
-		float col[] = { 1.0f, 0.99f, 0.2f, 1.0f };
-		utilitiesColourToMat(col, 2.0f);
+		pNode->m_colour[0] = 1.0f;
+		pNode->m_colour[1] = 0.99f;
+		pNode->m_colour[2] = 0.2f;
+		pNode->m_colour[3] = 1.0f;
 	}
 	case 6: // South America
 	{
-		float col[] = { 0.2f, 1.0f, 1.0f, 1.0f };
-		utilitiesColourToMat(col, 2.0f);
+		pNode->m_colour[0] = 0.2f;
+		pNode->m_colour[1] = 1.0f;
+		pNode->m_colour[2] = 1.0f;
+		pNode->m_colour[3] = 1.0f;
 	}
 
 	}
@@ -190,7 +200,7 @@ void myInit()
 	initSystem(&g_System);
 	parse(g_acFile, parseSection, parseNetwork, parseArc, parsePartition, parseVector);
 
-	//visitNodes(&g_System, setColor);
+	visitNodes(&g_System, setColor);
 }
 
 int main(int argc, char* argv[])
@@ -247,14 +257,18 @@ void display()
 
 	glLoadIdentity(); // clear the current transformation state
 	glMultMatrixf(camObjMat(g_Camera)); // apply the current camera transform
-
 	// draw the grid if the control flag for it is true	
 	if (controlActive(g_Control, csg_uiControlDrawGrid)) glCallList(gs_uiGridDisplayList);
-
 	glPushAttrib(GL_ALL_ATTRIB_BITS); // push attribute state to enable constrained state changes
-
 	visitNodes(&g_System, nodeDisplay); // loop through all of the nodes and draw them with the nodeDisplay function
+
+	glEnable(GL_COLOR_MATERIAL);
+	glDisable(GL_LIGHTING);
+	glLineWidth(1);
+	glBegin(GL_LINES);
 	visitArcs(&g_System, arcDisplay); // loop through all of the arcs and draw them with the arcDisplay function
+	glEnd();
+
 	glPopAttrib();
 	glFlush(); // ensure all the ogl instructions have been processed
 	glutSwapBuffers(); // present the rendered scene to the screen
@@ -288,17 +302,6 @@ void nodeMath(raaNode* pNode)
 	vecScalarDiv(s, time, pNode->m_finalVelocity);
 	vecScalarProduct(pNode->m_finalVelocity, dampingCoef, pNode->m_initialVelocity);
 	// f is optional (in the document)
-
-	
-
-	//float s[4] = { 5.0f, 5.0f, 5.0f, 1.0f };
-	//vecAdd(pNode->m_afPosition, s, pNode->m_afPosition);
-	//float acceleration[4] = {
-	//	pNode->m_force[0] * pNode->m_fMass,
-	//	pNode->m_force[1] * pNode->m_fMass,
-	//	pNode->m_force[2] * pNode->m_fMass,
-	//	1.0,
-	//};
 	
 }
 
